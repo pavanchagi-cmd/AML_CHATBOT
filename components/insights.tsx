@@ -85,7 +85,7 @@ export function GapsTable({ gaps }: { gaps: InsightsData["gaps"] }) {
                   <span
                     className={cn(
                       "rounded-full px-[9px] py-0.5 text-xs whitespace-nowrap",
-                      g.reason === "notfound" ? "bg-amber-soft text-amber" : "bg-danger-soft text-danger",
+                      g.reason === "notfound" ? "bg-amber-soft text-amber-ink" : "bg-danger-soft text-danger",
                     )}
                   >
                     {g.reason === "notfound" ? "Not found" : "Marked unhelpful"}

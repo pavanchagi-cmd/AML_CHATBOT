@@ -25,7 +25,7 @@ export function SourceTabs({
             selectedN === s.n && "border-amber-line border-l-amber bg-amber-soft text-ink",
           )}
         >
-          <b className="text-amber font-semibold">{s.n}</b>
+          <b className="text-amber-ink font-semibold">{s.n}</b>
           <span className="max-w-[260px] truncate">
             {s.docTitle}, {where(s)}
           </span>

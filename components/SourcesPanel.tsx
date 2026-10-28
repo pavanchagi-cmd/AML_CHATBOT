@@ -58,7 +58,7 @@ function PassageCard({ source, selected, terms }: { source: Source; selected: bo
       )}
     >
       <div className="mb-1.5 flex items-center gap-2">
-        <span className="rounded-chip border-amber-line bg-amber-soft text-amber border px-1.5 py-px text-[12.5px] font-semibold">
+        <span className="rounded-chip border-amber-line bg-amber-soft text-amber-ink border px-1.5 py-px text-[12.5px] font-semibold">
           {source.n}
         </span>
         <span className="truncate text-[12.5px] font-semibold">{source.docTitle}</span>
