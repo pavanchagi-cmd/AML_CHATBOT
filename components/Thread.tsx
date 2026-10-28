@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { forwardRef } from "react";
 import { BotAnswer, UserBubble } from "@/components/Message";
 import type { ChatMessage, Rating } from "@/lib/types";
@@ -18,6 +19,7 @@ export type Selection = { messageId: string; n: number } | null;
 type Props = {
   messages: ChatMessage[];
   selection: Selection;
+  libraryEmpty: boolean;
   onSuggest: (q: string) => void;
   onOpenSource: (messageId: string, n: number) => void;
   onCopy: (messageId: string) => void;
@@ -25,7 +27,7 @@ type Props = {
 };
 
 export const Thread = forwardRef<HTMLDivElement, Props>(function Thread(
-  { messages, selection, onSuggest, onOpenSource, onCopy, onRate },
+  { messages, selection, libraryEmpty, onSuggest, onOpenSource, onCopy, onRate },
   ref,
 ) {
   return (
@@ -40,6 +42,15 @@ export const Thread = forwardRef<HTMLDivElement, Props>(function Thread(
               Ask about a money-laundering pattern, a red flag or a procedure. Answers come only from the documents in
               your library, with the source for each point.
             </p>
+            {libraryEmpty && (
+              <div className="bg-amber-soft border-amber-line text-ink mb-[22px] rounded-lg border px-3 py-[9px] text-[13px]">
+                The library has no documents yet, so there is nothing to answer from.{" "}
+                <Link href="/library" className="text-ink font-semibold underline">
+                  Add documents in the Library
+                </Link>{" "}
+                first.
+              </div>
+            )}
             <div className="mobile:grid-cols-1 grid grid-cols-2 gap-2.5">
               {SUGGESTIONS.map((s) => (
                 <button

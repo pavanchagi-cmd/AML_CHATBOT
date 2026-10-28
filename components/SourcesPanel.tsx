@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { iconButtonClass } from "@/components/ui";
+import { highlightParts, queryTerms } from "@/lib/highlight";
 import { where, type Source } from "@/lib/types";
 
 const STEPS = [
@@ -42,7 +43,7 @@ function HowAnswersAreFound() {
   );
 }
 
-function PassageCard({ source, selected }: { source: Source; selected: boolean }) {
+function PassageCard({ source, selected, terms }: { source: Source; selected: boolean; terms: Set<string> }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (selected) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -66,7 +67,15 @@ function PassageCard({ source, selected }: { source: Source; selected: boolean }
         {where(source)}, {source.category}
       </div>
       <div className="max-h-[180px] overflow-auto font-serif text-[13.5px] leading-[1.55] whitespace-pre-wrap">
-        {source.text}
+        {highlightParts(source.text, terms).map((part, i) =>
+          part.hit ? (
+            <mark key={i} className="bg-amber-soft border-amber border-b px-px text-inherit">
+              {part.text}
+            </mark>
+          ) : (
+            part.text
+          ),
+        )}
       </div>
       <div className="text-ink-2 mt-2 flex items-center gap-2 text-[11.5px]">
         Match
@@ -83,16 +92,19 @@ function PassageCard({ source, selected }: { source: Source; selected: boolean }
 
 export function SourcesPanel({
   sources,
+  question,
   selectedN,
   open,
   onClose,
 }: {
   sources: Source[] | null;
+  question: string;
   selectedN: number | null;
   open: boolean;
   onClose: () => void;
 }) {
   const hasSources = !!sources && sources.length > 0;
+  const terms = useMemo(() => queryTerms(question), [question]);
 
   return (
     <>
@@ -130,7 +142,7 @@ export function SourcesPanel({
         </div>
         <div className="flex flex-col gap-3 overflow-y-auto px-5 pt-4 pb-6">
           {hasSources ? (
-            sources.map((s) => <PassageCard key={s.n} source={s} selected={selectedN === s.n} />)
+            sources.map((s) => <PassageCard key={s.n} source={s} selected={selectedN === s.n} terms={terms} />)
           ) : (
             <HowAnswersAreFound />
           )}

@@ -6,47 +6,121 @@ import { SourcesPanel } from "@/components/SourcesPanel";
 import { Thread, type Selection } from "@/components/Thread";
 import { useToast } from "@/components/Toast";
 import { CATEGORIES, TopBar, buttonClass, selectClass } from "@/components/ui";
+import { apiError } from "@/lib/api-client";
+import type { ChatEvent } from "@/lib/chat-events";
+import { copyText, stripAllCitations } from "@/lib/citations";
+import { useReadyCount } from "@/lib/library-events";
+import { readNdjson } from "@/lib/ndjson";
 import type { BotMessage, ChatMessage, Rating } from "@/lib/types";
 
-const newId = () => Math.random().toString(36).slice(2, 10);
+const newId = () => crypto.randomUUID();
+const OFFLINE = "Couldn't reach the server. Check your connection and try again.";
+const CUT_OFF = "The answer was cut off. Try asking again.";
+
+// Questions and answers already completed, for follow-up questions (the server uses the last few).
+function historyFrom(messages: ChatMessage[]) {
+  const out: { role: "user" | "assistant"; text: string }[] = [];
+  for (let i = 0; i < messages.length - 1; i++) {
+    const q = messages[i];
+    const a = messages[i + 1];
+    if (q.role === "user" && a.role === "bot" && a.status === "done") {
+      out.push({ role: "user", text: q.text }, { role: "assistant", text: stripAllCitations(a.text) });
+    }
+  }
+  return out.slice(-6);
+}
 
 export function AskView() {
   const toast = useToast();
+  const readyCount = useReadyCount();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [scope, setScope] = useState("all");
   const [selection, setSelection] = useState<Selection>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [busy] = useState(false);
+  const [busy, setBusy] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
 
   const selectedMessage = selection
     ? (messages.find((m) => m.id === selection.messageId && m.role === "bot") as BotMessage | undefined)
     : undefined;
 
-  function scrollToEnd() {
+  function scrollToEnd(onlyIfNear = false) {
     requestAnimationFrame(() => {
       const t = threadRef.current;
-      if (t) t.scrollTop = t.scrollHeight;
+      if (!t) return;
+      if (!onlyIfNear || t.scrollHeight - t.scrollTop - t.clientHeight < 240) t.scrollTop = t.scrollHeight;
     });
   }
 
-  function ask(q: string) {
+  function updateBot(id: string, change: (m: BotMessage) => Partial<BotMessage>) {
+    setMessages((ms) => ms.map((m) => (m.id === id && m.role === "bot" ? { ...m, ...change(m) } : m)));
+  }
+
+  async function ask(question: string) {
     if (busy) return;
-    // The chat pipeline (Gemini + Pinecone) is wired up in build step 5.
+    const botId = newId();
+    const history = historyFrom(messages);
     setMessages((ms) => [
       ...ms,
-      { id: newId(), role: "user", text: q },
-      {
-        id: newId(),
-        role: "bot",
-        status: "error",
-        text: "",
-        sources: [],
-        error: "Answers aren't connected yet. They arrive in build step 5.",
-      },
+      { id: newId(), role: "user", text: question },
+      { id: botId, role: "bot", question, status: "thinking", phase: "Searching the library", text: "", sources: [] },
     ]);
+    setBusy(true);
     setSelection(null);
     scrollToEnd();
+
+    let finished = false;
+    let sourceCount = 0;
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question, scope, history }),
+      });
+      if (!res.ok) {
+        const err = await apiError(res, OFFLINE);
+        updateBot(botId, () => ({ status: "error", error: err.message }));
+        finished = true;
+        return;
+      }
+      await readNdjson<ChatEvent>(res, (event) => {
+        switch (event.type) {
+          case "sources":
+            sourceCount = event.sources.length;
+            updateBot(botId, () => ({
+              status: "streaming",
+              sources: event.sources,
+              phase: `Reading ${sourceCount} passage${sourceCount === 1 ? "" : "s"}`,
+            }));
+            break;
+          case "delta":
+            updateBot(botId, (m) => ({ status: "streaming", text: m.text + event.text }));
+            scrollToEnd(true);
+            break;
+          case "done":
+            finished = true;
+            updateBot(botId, () => ({ status: "done", questionId: event.questionId }));
+            break;
+          case "notfound":
+            finished = true;
+            sourceCount = 0;
+            updateBot(botId, () => ({ status: "notfound", sources: [], questionId: event.questionId }));
+            break;
+          case "error":
+            finished = true;
+            updateBot(botId, () => ({ status: "error", error: event.message }));
+            break;
+        }
+      });
+      if (!finished) updateBot(botId, () => ({ status: "error", error: CUT_OFF }));
+    } catch {
+      if (!finished) updateBot(botId, () => ({ status: "error", error: OFFLINE }));
+    } finally {
+      setBusy(false);
+      // Like the prototype, the Sources panel shows the passages of the latest answer.
+      if (sourceCount > 0) setSelection({ messageId: botId, n: 1 });
+      scrollToEnd(true);
+    }
   }
 
   function openSource(messageId: string, n: number) {
@@ -58,19 +132,35 @@ export function AskView() {
     const m = messages.find((x) => x.id === messageId);
     if (!m) return;
     try {
-      await navigator.clipboard.writeText(m.text.replace(/\s*\[\d+(?:,\s*\d+)*\]/g, ""));
+      await navigator.clipboard.writeText(copyText(m.text));
       toast("Answer copied");
     } catch {
       toast("Copying isn’t allowed here. Select the text instead.");
     }
   }
 
-  function rate(messageId: string, rating: Rating) {
+  async function rate(messageId: string, rating: Rating) {
     const current = messages.find((m) => m.id === messageId);
     if (!current || current.role !== "bot") return;
-    const next = current.rating === rating ? null : rating;
-    setMessages((ms) => ms.map((m) => (m.id === messageId && m.role === "bot" ? { ...m, rating: next } : m)));
-    toast(next ? "Feedback saved" : "Feedback removed");
+    if (!current.questionId) {
+      toast("Feedback can't be saved for this answer.");
+      return;
+    }
+    const previous = current.rating ?? null;
+    const next = previous === rating ? null : rating;
+    updateBot(messageId, () => ({ rating: next }));
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ questionId: current.questionId, rating: next }),
+      });
+      if (!res.ok) throw await apiError(res, "Couldn't save your feedback. Try again.");
+      toast(next ? "Feedback saved" : "Feedback removed");
+    } catch (err) {
+      updateBot(messageId, () => ({ rating: previous }));
+      toast(err instanceof Error && err.message ? err.message : "Couldn't save your feedback. Try again.");
+    }
   }
 
   function newChat() {
@@ -101,6 +191,7 @@ export function AskView() {
           ref={threadRef}
           messages={messages}
           selection={selection}
+          libraryEmpty={readyCount === 0}
           onSuggest={ask}
           onOpenSource={openSource}
           onCopy={copy}
@@ -110,6 +201,7 @@ export function AskView() {
       </div>
       <SourcesPanel
         sources={selectedMessage?.sources ?? null}
+        question={selectedMessage?.question ?? ""}
         selectedN={selection?.n ?? null}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
