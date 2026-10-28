@@ -69,10 +69,11 @@ function blockHeader(s: Source) {
 // Numbered context blocks in rank order, then recent turns (for follow-ups only), then the question.
 // When an analyst picks source tab n, the answer is rewritten from passages 1 to n only.
 export function passageInstruction(count: number) {
-  const range = count === 1 ? "block [1]" : `blocks [1] to [${count}]`;
   return (
-    `Instruction for this answer: use only ${range}, in order. Keep it brief: one short point per block, ` +
-    `cited with its number. If a block does not relate to the question, say so in a few words.`
+    `Instruction for this answer: write exactly ${count} bullet${count === 1 ? "" : "s"}, one per context block, ` +
+    `in block order. Each bullet is one short sentence in the form "- **<section name>**: <what this passage says ` +
+    `about the question> [n]", where n is the block number. Never call them "blocks". If a passage does not ` +
+    `relate to the question, say so in a few words. No introduction or conclusion.`
   );
 }
 

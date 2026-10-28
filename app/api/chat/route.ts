@@ -20,7 +20,7 @@ const Body = z.object({
     .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().max(4000) }))
     .max(6)
     .default([]),
-  // Rewrite the answer from passages 1..upTo only (the analyst picked source tab upTo).
+  // Per-passage breakdown of passages 1..upTo (one brief bullet each), for the source tabs.
   upTo: z.number().int().min(1).max(50).optional(),
 });
 
@@ -35,10 +35,12 @@ function describe(err: unknown, fallback: string) {
 }
 
 export async function POST(req: Request) {
-  if (rateLimited(`chat:${clientIp(req)}`)) {
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  // Breakdowns (upTo) have their own budget, so fetching one after each answer doesn't halve the question limit.
+  const bucket = parsed.success && parsed.data.upTo ? "breakdown" : "chat";
+  if (rateLimited(`${bucket}:${clientIp(req)}`)) {
     return errorResponse(429, "rate_limited", "You're asking questions very quickly. Wait a minute and try again.");
   }
-  const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return errorResponse(400, "bad_request", "Questions must be between 2 and 1,000 characters.");
   }

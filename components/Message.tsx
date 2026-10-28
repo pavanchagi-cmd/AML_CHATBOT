@@ -68,7 +68,7 @@ export function BotAnswer({
     );
   else if (m.status === "error") body = <Notice title="No answer">{m.error}</Notice>;
   else if (m.status === "streaming" && !m.text) body = <Thinking phase={m.phase} />;
-  else if (m.rewriting) body = <Thinking phase={`Rewriting the answer from passages 1–${m.rewriting}`} />;
+  else if (m.rewriting) body = <Thinking phase={`Preparing brief points for passages 1–${m.rewriting}`} />;
   else
     body = (
       <>

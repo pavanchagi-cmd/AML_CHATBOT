@@ -28,11 +28,10 @@ export type BotMessage = {
   questionId?: string;
   rating?: Rating | null;
   error?: string;
-  // Source tab n rewrites the answer from passages 1..n. `upTo` is the version on screen
-  // (undefined = the original answer); finished versions are kept so switching back is instant.
+  // Source tab n shows brief points for passages 1..n. `upTo` is the version on screen
+  // (undefined = the original answer, kept in `original`).
   original?: string;
   upTo?: number;
-  versions?: Record<number, string>;
   rewriting?: number;
   rewriteError?: string;
 };

@@ -67,9 +67,10 @@ describe("rewriting from passages 1..n", () => {
   it("asks for one brief point per passage, before the question", () => {
     const sources = relevantSources([match("a", 0.9), match("b", 0.7)], 0.5);
     const prompt = buildPrompt(sources, [], "Mule red flags?", { coverEachBlock: true });
-    expect(prompt).toContain("use only blocks [1] to [2], in order. Keep it brief: one short point per block");
+    expect(prompt).toContain("write exactly 2 bullets, one per context block, in block order");
+    expect(prompt).toContain('Never call them "blocks"');
     expect(prompt.indexOf("Instruction for this answer")).toBeLessThan(prompt.indexOf("Question:"));
-    expect(passageInstruction(1)).toContain("use only block [1]");
+    expect(passageInstruction(1)).toContain("write exactly 1 bullet,");
     expect(buildPrompt(sources, [], "q")).not.toContain("Instruction for this answer");
   });
 });

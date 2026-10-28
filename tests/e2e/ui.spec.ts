@@ -110,27 +110,31 @@ test("setup check offers one-click fixes for tables and the Pinecone index", asy
   expect(setupCalls).toEqual([{ action: "migrate" }, { action: "create-index", cloud: "aws", region: "us-west-2" }]);
 });
 
-test("source tab n rewrites the answer briefly from passages 1..n; tab 1 restores the original", async ({ page }) => {
+test("source tabs show brief points for passages 1..n from one background request", async ({ page }) => {
   const { chatCalls } = await mockApi(page);
   await page.goto("/ask");
   await page.getByRole("button", { name: "What are the red flags of a money mule account?" }).click();
   await expect(page.getByRole("button", { name: "Copy answer" })).toBeVisible();
+  // The breakdown for all passages is fetched once, in the background, right after the answer.
+  await expect.poll(() => chatCalls.filter((c) => c.upTo).length).toBe(1);
+  expect(chatCalls.find((c) => c.upTo)?.upTo).toBe(3);
   const tabs = page.locator("button[title]").filter({ hasText: "AML Pattern Analysis SOP" });
 
   await tabs.nth(1).click();
   await expect(page.getByText("Brief answer from passages 1–2.")).toBeVisible();
-  await expect(page.getByText("4.6 Dormant account reactivation: brief point")).toBeVisible();
+  await expect(page.getByText(": brief point")).toHaveCount(2);
   await expect(tabs.nth(0)).toHaveAttribute("aria-pressed", "true");
   await expect(tabs.nth(1)).toHaveAttribute("aria-pressed", "true");
-  expect(chatCalls.at(-1)).toMatchObject({ upTo: 2 });
+  await expect(tabs.nth(2)).toHaveAttribute("aria-pressed", "false");
+
+  await tabs.nth(2).click();
+  await expect(page.getByText("Brief answer from passages 1–3.")).toBeVisible();
+  await expect(page.getByText(": brief point")).toHaveCount(3);
+  await expect(page.getByText("5.4 Account takeover").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Show the original answer" }).click();
   await expect(page.getByText("Brief answer from passages")).toHaveCount(0);
-  await expect(page.getByText("money mule account").first()).toBeVisible();
 
-  // Going back to tab 2 reuses the saved version (no new request).
-  const before = chatCalls.length;
-  await tabs.nth(1).click();
-  await expect(page.getByText("Brief answer from passages 1–2.")).toBeVisible();
-  expect(chatCalls.length).toBe(before);
+  // Still only one breakdown request for this answer.
+  expect(chatCalls.filter((c) => c.upTo)).toHaveLength(1);
 });
