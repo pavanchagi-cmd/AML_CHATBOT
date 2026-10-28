@@ -23,6 +23,16 @@ export const sources = [
     text: "Often linked to money mule activity. Checks: login and device history.",
     score: 0.61,
   },
+  {
+    n: 3,
+    docId: "d_1",
+    docTitle: "AML Pattern Analysis SOP",
+    category: "Internal SOP",
+    section: "5.4 Account takeover",
+    page: 5,
+    text: "Mobile number or email changes, then large transfers soon after.",
+    score: 0.58,
+  },
 ];
 
 export const answer =
@@ -59,7 +69,7 @@ export async function mockApi(page: Page, opts: { documents?: unknown[] } = {}) 
     if (upTo) {
       const points = sources
         .slice(0, upTo)
-        .map((s) => `- ${s.section}: brief point [${s.n}]`)
+        .map((s) => `- **${s.section}**: brief point [${s.n}]`)
         .join("\n");
       return r.fulfill({
         contentType: "application/x-ndjson",

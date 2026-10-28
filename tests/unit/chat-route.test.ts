@@ -183,10 +183,24 @@ describe("POST /api/chat with upTo (rewrite from passages 1..n)", () => {
     const { events } = await ask("What is pass-through?", "all", 2);
     const sources = (events[0] as { sources: { section: string }[] }).sources;
     expect(sources.map((s) => s.section)).toEqual(["4.2 Pass-through", "8.1 Crypto"]);
-    expect(fake.lastPrompt).toContain("use only blocks [1] to [2]");
+    expect(fake.lastPrompt).toContain("write exactly 2 bullets");
     expect(fake.lastPrompt).not.toContain("5.1 Money mule account");
     expect(events.at(-1)).toEqual({ type: "done" });
     expect(await logged()).toHaveLength(0);
+  });
+
+  it("has its own rate-limit budget, so breakdowns don't use up the question limit", async () => {
+    const send = (upTo?: number) =>
+      chat(
+        new Request("http://localhost/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-forwarded-for": "10.7.7.7" },
+          body: JSON.stringify({ question: "Mule red flags?", scope: "all", ...(upTo ? { upTo } : {}) }),
+        }),
+      );
+    for (let i = 0; i < 20; i++) expect((await send(3)).status).toBe(200);
+    expect((await send(3)).status).toBe(429);
+    expect((await send()).status).toBe(200);
   });
 
   it("rejects an invalid upTo", async () => {

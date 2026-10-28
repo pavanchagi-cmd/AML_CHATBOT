@@ -7,6 +7,7 @@ import { Thread, type Selection } from "@/components/Thread";
 import { useToast } from "@/components/Toast";
 import { CATEGORIES, TopBar, buttonClass, selectClass } from "@/components/ui";
 import { apiError } from "@/lib/api-client";
+import { breakdownRange, composeBreakdown, parseBreakdown, type Breakdown } from "@/lib/breakdown";
 import type { ChatEvent } from "@/lib/chat-events";
 import { copyText, stripAllCitations } from "@/lib/citations";
 import { useReadyCount } from "@/lib/library-events";
@@ -79,7 +80,9 @@ export function AskView() {
     scrollToEnd();
 
     let finished = false;
+    let answered = false;
     let sourceCount = 0;
+    let sources: BotMessage["sources"] = [];
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -96,6 +99,7 @@ export function AskView() {
         switch (event.type) {
           case "sources":
             sourceCount = event.sources.length;
+            sources = event.sources;
             updateBot(botId, () => ({
               status: "streaming",
               sources: event.sources,
@@ -109,6 +113,7 @@ export function AskView() {
           case "done":
             finished = true;
             updateBot(botId, () => ({ status: "done", questionId: event.questionId }));
+            answered = true;
             break;
           case "notfound":
             finished = true;
@@ -129,6 +134,12 @@ export function AskView() {
       // Like the prototype, the Sources panel shows the passages of the latest answer.
       if (sourceCount > 0) setSelection({ messageId: botId, n: 1 });
       scrollToEnd(true);
+      // Get the per-passage breakdown ready in the background, so source tabs respond instantly.
+      if (answered && sources.length > 1) {
+        fetchBreakdown({ id: botId, role: "bot", question, scope, status: "done", text: "", sources }).promise.catch(
+          () => {},
+        );
+      }
     }
   }
 
@@ -137,62 +148,89 @@ export function AskView() {
     if (matchMedia("(max-width: 1100px)").matches) setDrawerOpen(true);
   }
 
-  // Source tab n: show passage n, and rewrite the answer briefly from passages 1..n (tab 1 = original answer).
+  // One background request per answer fetches a brief bullet for every passage; tab n then shows bullets 1..n.
+  const breakdowns = useRef(new Map<string, { promise: Promise<Breakdown>; result?: Breakdown }>());
+
+  function fetchBreakdown(m: BotMessage) {
+    const cached = breakdowns.current.get(m.id);
+    if (cached) return cached;
+    const entry: { promise: Promise<Breakdown>; result?: Breakdown } = {
+      promise: (async () => {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ question: m.question, scope: m.scope ?? "all", history: [], upTo: m.sources.length }),
+        });
+        if (!res.ok) throw await apiError(res, OFFLINE);
+        let text = "";
+        let outcome: "done" | "notfound" | string | null = null;
+        await readNdjson<ChatEvent>(res, (event) => {
+          if (event.type === "delta") text += event.text;
+          else if (event.type === "done") outcome = "done";
+          else if (event.type === "notfound") outcome = "notfound";
+          else if (event.type === "error") outcome = event.message;
+        });
+        if (outcome === "notfound") throw new Error("These passages don't add anything to this answer.");
+        if (outcome !== "done") throw new Error(outcome ?? CUT_OFF);
+        return parseBreakdown(text, m.sources.length);
+      })(),
+    };
+    entry.promise.then(
+      (result) => (entry.result = result),
+      () => breakdowns.current.delete(m.id), // allow a retry on the next click
+    );
+    breakdowns.current.set(m.id, entry);
+    return entry;
+  }
+
+  function showBreakdown(messageId: string, n: number, count: number, b: Breakdown) {
+    updateBot(messageId, () => ({
+      text: composeBreakdown(b, n),
+      upTo: breakdownRange(b, n, count),
+      rewriting: undefined,
+    }));
+  }
+
+  // Source tab n: show passage n, and the brief points for passages 1..n (tab 1 = original answer).
   async function selectTab(messageId: string, n: number) {
     openSource(messageId, n);
     const m = messages.find((x) => x.id === messageId);
-    if (!m || m.role !== "bot" || m.status !== "done" || busy || m.rewriting) return;
+    if (!m || m.role !== "bot" || m.status !== "done") return;
     const original = m.original ?? m.text;
     if (n === 1 || n > m.sources.length) {
-      updateBot(messageId, () => ({ text: original, upTo: undefined, rewriteError: undefined }));
+      updateBot(messageId, () => ({ text: original, upTo: undefined, rewriting: undefined, rewriteError: undefined }));
       return;
     }
-    const saved = m.versions?.[n];
-    if (saved) {
-      updateBot(messageId, () => ({ text: saved, upTo: n, rewriteError: undefined }));
+    const entry = fetchBreakdown(m);
+    if (entry.result) {
+      updateBot(messageId, () => ({ original, rewriteError: undefined }));
+      showBreakdown(messageId, n, m.sources.length, entry.result);
       return;
     }
-
     const shown = { text: m.text, upTo: m.upTo };
-    const restore = (error: string) =>
-      updateBot(messageId, () => ({ ...shown, rewriting: undefined, rewriteError: error }));
     updateBot(messageId, () => ({ original, rewriting: n, rewriteError: undefined }));
-    setBusy(true);
-    let text = "";
-    let finished = false;
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question: m.question, scope: m.scope ?? "all", history: [], upTo: n }),
-      });
-      if (!res.ok) {
-        restore((await apiError(res, OFFLINE)).message);
-        finished = true;
-        return;
-      }
-      await readNdjson<ChatEvent>(res, (event) => {
-        if (event.type === "delta") {
-          text += event.text;
-          updateBot(messageId, () => ({ text, upTo: n, rewriting: undefined }));
-          scrollToEnd(true);
-        } else if (event.type === "done") {
-          finished = true;
-          const done = text;
-          updateBot(messageId, (cur) => ({ versions: { ...cur.versions, [n]: done } }));
-        } else if (event.type === "notfound") {
-          finished = true;
-          restore(`Passages 1–${n} don't add anything to this answer.`);
-        } else if (event.type === "error") {
-          finished = true;
-          restore(event.message);
+      const result = await entry.promise;
+      // Only apply if the analyst hasn't picked another tab meanwhile.
+      setMessages((ms) => {
+        const cur = ms.find((x) => x.id === messageId);
+        if (cur?.role === "bot" && cur.rewriting === n) {
+          return ms.map((x) =>
+            x.id === messageId && x.role === "bot"
+              ? {
+                  ...x,
+                  text: composeBreakdown(result, n),
+                  upTo: breakdownRange(result, n, m.sources.length),
+                  rewriting: undefined,
+                }
+              : x,
+          );
         }
+        return ms;
       });
-      if (!finished) restore(CUT_OFF);
-    } catch {
-      if (!finished) restore(OFFLINE);
-    } finally {
-      setBusy(false);
+    } catch (err) {
+      const message = err instanceof Error && err.message ? err.message : OFFLINE;
+      updateBot(messageId, () => ({ ...shown, rewriting: undefined, rewriteError: message }));
     }
   }
 
@@ -233,6 +271,7 @@ export function AskView() {
 
   function newChat() {
     if (busy) return;
+    breakdowns.current.clear();
     setMessages([]);
     setSelection(null);
     setDrawerOpen(false);
