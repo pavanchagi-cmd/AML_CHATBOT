@@ -27,7 +27,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       type="button"
       onClick={toggle}
       className={cn(
-        "flex items-center gap-2 rounded-md border border-line bg-transparent px-2.5 py-[7px] text-[13px] text-ink-2",
+        "border-line text-ink-2 flex items-center gap-2 rounded-md border bg-transparent px-2.5 py-[7px] text-[13px]",
         className,
       )}
     >

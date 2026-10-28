@@ -12,6 +12,10 @@
   }
 }
 
+/* The prototype's two layout breakpoints. */
+@custom-variant narrow (@media (max-width: 1100px));
+@custom-variant mobile (@media (max-width: 760px));
+
 /* Design tokens, copied from the approved prototype (aml-compass.html). */
 :root {
   --bg: #f3f4f0;
@@ -142,6 +146,29 @@
   --radius-2xl: 14px;
 
   --shadow-card: var(--shadow);
+
+  --animate-dot: dot-blink 1s infinite;
+  --animate-stage: stage-fill 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes dot-blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+@keyframes stage-fill {
+  from {
+    transform: scaleX(0.15);
+  }
+  to {
+    transform: scaleX(0.9);
+  }
 }
 
 @layer base {
