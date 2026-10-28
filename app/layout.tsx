@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, Source_Serif_4 } from "next/font/google";
+import { Rail } from "@/components/Rail";
+import { ToastProvider } from "@/components/Toast";
 import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
@@ -35,7 +37,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <ToastProvider>
+          <div className="mobile:grid-cols-1 mobile:grid-rows-[1fr_auto] grid h-full grid-cols-[240px_1fr]">
+            <Rail />
+            <main className="flex min-h-0 min-w-0 flex-col">{children}</main>
+          </div>
+        </ToastProvider>
+      </body>
     </html>
   );
 }
