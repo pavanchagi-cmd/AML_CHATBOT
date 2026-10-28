@@ -1,0 +1,195 @@
+@import "tailwindcss";
+
+/* Dark mode follows data-theme when set, otherwise the OS preference. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
+/* Design tokens, copied from the approved prototype (aml-compass.html). */
+:root {
+  --bg: #f3f4f0;
+  --surface: #ffffff;
+  --surface-2: #eaece6;
+  --ink: #17211f;
+  --ink-2: #52605b;
+  --line: #d6dad2;
+  --accent: #1f5f55;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcebe5;
+  --amber: #9c6608;
+  --amber-soft: #f5e6c4;
+  --amber-line: #e2c78a;
+  --danger: #a13a2b;
+  --danger-soft: #f5deda;
+  --shadow: 0 1px 2px rgba(23, 33, 31, 0.06), 0 8px 24px rgba(23, 33, 31, 0.06);
+  --sans: var(--font-plex-sans), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  color-scheme: light;
+
+  /* shadcn/ui variable names, mapped onto the prototype tokens. */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-ink);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--ink-2);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1513;
+    --surface: #161d1b;
+    --surface-2: #1d2623;
+    --ink: #e3e8e3;
+    --ink-2: #9aa7a2;
+    --line: #2b3532;
+    --accent: #62b5a4;
+    --accent-ink: #0d1a17;
+    --accent-soft: #1c3832;
+    --amber: #e3ae52;
+    --amber-soft: #382c14;
+    --amber-line: #6b5527;
+    --danger: #e5806f;
+    --danger-soft: #3a1f1a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f1513;
+  --surface: #161d1b;
+  --surface-2: #1d2623;
+  --ink: #e3e8e3;
+  --ink-2: #9aa7a2;
+  --line: #2b3532;
+  --accent: #62b5a4;
+  --accent-ink: #0d1a17;
+  --accent-soft: #1c3832;
+  --amber: #e3ae52;
+  --amber-soft: #382c14;
+  --amber-line: #6b5527;
+  --danger: #e5806f;
+  --danger-soft: #3a1f1a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+  color-scheme: dark;
+}
+
+/*
+ * Tailwind theme (Tailwind v4 keeps its config in CSS):
+ * utilities such as bg-surface, text-ink-2, border-line, font-serif, shadow-card.
+ * Radii are the prototype's: 4, 5, 6, 8, 10, 12, 14 px.
+ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-amber-line: var(--amber-line);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--sans);
+  --font-serif: var(--serif);
+
+  --radius-xs: 4px;
+  --radius-chip: 5px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
+
+  --shadow-card: var(--shadow);
+}
+
+@layer base {
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *,
+  *::before,
+  *::after {
+    box-sizing: inherit;
+    border-color: var(--line);
+  }
+  html {
+    height: 100%;
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+  }
+  body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+  button {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
