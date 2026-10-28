@@ -35,6 +35,28 @@ function savePasscode(value: string | null) {
   }
 }
 
+// The Blob client only reports "Failed to retrieve the client token", so ask the token route
+// directly for its reason (a token request uploads nothing).
+async function explainUploadFailure(err: unknown, fileName: string, code: string): Promise<string> {
+  const fallback = "The upload didn't go through. Check your connection and try again.";
+  try {
+    const res = await fetch("/api/blob", {
+      method: "POST",
+      headers: { "content-type": "application/json", [ADMIN_HEADER]: code },
+      body: JSON.stringify({
+        type: "blob.generate-client-token",
+        payload: { pathname: `documents/${fileName}`, clientPayload: null, multipart: false },
+      }),
+    });
+    if (!res.ok) return (await apiError(res, fallback)).message;
+  } catch {
+    return fallback;
+  }
+  // The token route works, so the transfer itself failed.
+  const detail = err instanceof Error && err.message ? ` (${err.message})` : "";
+  return `The upload to file storage failed${detail}. Try again; if it keeps failing, run the Setup check.`;
+}
+
 function PasscodePrompt({ onUnlock, onCancel }: { onUnlock: (passcode: string) => void; onCancel: () => void }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -167,11 +189,11 @@ export function LibraryView() {
             setPipeline({ name: file.name, stage: 0, message: `Uploading… ${Math.round(percentage)}%` }),
         });
         blobUrl = blob.url;
-      } catch {
+      } catch (err) {
         setPipeline({
           name: file.name,
           stage: 0,
-          message: "The upload didn't go through. Check your connection and try again.",
+          message: await explainUploadFailure(err, file.name, code),
           error: true,
         });
         return;

@@ -1,3 +1,4 @@
+import { isMissingTable } from "@/lib/db-errors";
 import { MissingEnvError } from "@/lib/env";
 
 // Every API error has the same shape: { error: { code, message } } with a plain-language message.
@@ -15,6 +16,14 @@ export function serverError(err: unknown) {
       500,
       "not_configured",
       "The app isn't fully set up yet. An admin can run the Setup check in the Library to see what's missing.",
+    );
+  }
+  if (isMissingTable(err)) {
+    console.error("Database tables are missing: run the migrations.");
+    return errorResponse(
+      503,
+      "db_not_ready",
+      "The database tables haven't been created yet. An admin can create them from the Setup check in the Library.",
     );
   }
   console.error(err instanceof Error ? err.message : err);

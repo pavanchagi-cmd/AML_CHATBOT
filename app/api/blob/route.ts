@@ -14,6 +14,13 @@ export async function POST(req: Request) {
 
   try {
     if (body.type === "blob.generate-client-token" && !isAdmin(req)) return unauthorized();
+    if (!process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+      return errorResponse(
+        503,
+        "blob_not_configured",
+        "File storage isn't connected. Connect a Vercel Blob store to this project (Storage tab), then redeploy.",
+      );
+    }
 
     const result = await handleUpload({
       body,

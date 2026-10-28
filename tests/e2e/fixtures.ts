@@ -46,6 +46,7 @@ export const readyDoc = {
 
 export async function mockApi(page: Page, opts: { documents?: unknown[] } = {}) {
   const feedback: unknown[] = [];
+  const setupCalls: unknown[] = [];
   await page.route("**/api/documents", (r) => r.fulfill({ json: opts.documents ?? [readyDoc] }));
   await page.route("**/api/feedback", (r: Route) => {
     feedback.push(JSON.parse(r.request().postData() ?? "{}"));
@@ -82,17 +83,35 @@ export async function mockApi(page: Page, opts: { documents?: unknown[] } = {}) 
       },
     }),
   );
+  await page.route("**/api/admin/setup", (r) => {
+    const body = JSON.parse(r.request().postData() ?? "{}") as { action: string; cloud?: string; region?: string };
+    setupCalls.push(body);
+    return r.fulfill({
+      json: {
+        message:
+          body.action === "migrate"
+            ? "Database tables are ready."
+            : `Index "aml-compass" created in ${body.cloud} ${body.region} and ready.`,
+      },
+    });
+  });
   await page.route("**/api/admin/verify", (r) => r.fulfill({ status: 204 }));
   await page.route("**/api/admin/status", (r) =>
     r.fulfill({
       json: {
         environment: "preview",
         services: [
-          { name: "Database (Neon Postgres)", status: "ok", detail: "Connected. 1 document(s), 4 logged question(s)." },
+          {
+            name: "Database (Neon Postgres)",
+            status: "error",
+            detail: "Connected, but the tables don't exist yet.",
+            action: "migrate",
+          },
           {
             name: "Vector index (Pinecone)",
             status: "error",
-            detail: 'Key works, but there is no index named "aml-compass".',
+            detail: 'Key works, but there is no index named "aml-compass" yet.',
+            action: "create-index",
           },
           { name: "Answer model (Gemini)", status: "missing", detail: "Skipped: set GEMINI_CHAT_MODEL first." },
         ],
@@ -103,5 +122,5 @@ export async function mockApi(page: Page, opts: { documents?: unknown[] } = {}) 
       },
     }),
   );
-  return { feedback };
+  return { feedback, setupCalls };
 }

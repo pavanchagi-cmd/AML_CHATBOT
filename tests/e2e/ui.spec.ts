@@ -88,7 +88,24 @@ test("admins can run the setup check from the Library", async ({ page }) => {
   await page.getByLabel("Admin passcode").fill("anything");
   await page.getByRole("button", { name: "Unlock" }).click();
   await page.getByRole("button", { name: "Run setup check" }).click();
-  await expect(page.getByText(/3 items need attention/)).toBeVisible();
-  await expect(page.getByText('Key works, but there is no index named "aml-compass".')).toBeVisible();
+  await expect(page.getByText(/4 items need attention/)).toBeVisible();
+  await expect(page.getByText('Key works, but there is no index named "aml-compass" yet.')).toBeVisible();
   await expect(page.getByText("Environment: preview.")).toBeVisible();
+});
+
+test("setup check offers one-click fixes for tables and the Pinecone index", async ({ page }) => {
+  const { setupCalls } = await mockApi(page);
+  await page.goto("/library");
+  await page.getByRole("button", { name: "Admin sign-in" }).click();
+  await page.getByLabel("Admin passcode").fill("anything");
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await page.getByRole("button", { name: "Run setup check" }).click();
+
+  await page.getByRole("button", { name: "Create database tables" }).click();
+  await expect(page.getByText("Database tables are ready.")).toBeVisible();
+
+  await page.getByLabel("Region").fill("us-west-2");
+  await page.getByRole("button", { name: "Create Pinecone index" }).click();
+  await expect(page.getByText('Index "aml-compass" created in aws us-west-2 and ready.')).toBeVisible();
+  expect(setupCalls).toEqual([{ action: "migrate" }, { action: "create-index", cloud: "aws", region: "us-west-2" }]);
 });
