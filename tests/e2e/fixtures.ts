@@ -82,5 +82,26 @@ export async function mockApi(page: Page, opts: { documents?: unknown[] } = {}) 
       },
     }),
   );
+  await page.route("**/api/admin/verify", (r) => r.fulfill({ status: 204 }));
+  await page.route("**/api/admin/status", (r) =>
+    r.fulfill({
+      json: {
+        environment: "preview",
+        services: [
+          { name: "Database (Neon Postgres)", status: "ok", detail: "Connected. 1 document(s), 4 logged question(s)." },
+          {
+            name: "Vector index (Pinecone)",
+            status: "error",
+            detail: 'Key works, but there is no index named "aml-compass".',
+          },
+          { name: "Answer model (Gemini)", status: "missing", detail: "Skipped: set GEMINI_CHAT_MODEL first." },
+        ],
+        settings: [
+          { name: "GEMINI_API_KEY", status: "ok", detail: "Set" },
+          { name: "GEMINI_CHAT_MODEL", status: "missing", detail: "Not set. Gemini model that writes the answers." },
+        ],
+      },
+    }),
+  );
   return { feedback };
 }
