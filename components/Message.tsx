@@ -45,12 +45,14 @@ export function BotAnswer({
   message,
   selectedN,
   onOpenSource,
+  onSelectTab,
   onCopy,
   onRate,
 }: {
   message: BotMessage;
   selectedN: number | null;
   onOpenSource: (n: number) => void;
+  onSelectTab: (n: number) => void;
   onCopy: () => void;
   onRate: (rating: Rating) => void;
 }) {
@@ -66,14 +68,36 @@ export function BotAnswer({
     );
   else if (m.status === "error") body = <Notice title="No answer">{m.error}</Notice>;
   else if (m.status === "streaming" && !m.text) body = <Thinking phase={m.phase} />;
-  else body = <Answer text={m.text} sourceCount={m.sources.length} onOpenSource={onOpenSource} />;
+  else if (m.rewriting) body = <Thinking phase={`Rewriting the answer from passages 1–${m.rewriting}`} />;
+  else
+    body = (
+      <>
+        {m.upTo && (
+          <div className="text-ink-2 font-sans text-[13px]">
+            Brief answer from passages 1–{m.upTo}.{" "}
+            <button type="button" className="text-accent underline" onClick={() => onSelectTab(1)}>
+              Show the original answer
+            </button>
+          </div>
+        )}
+        <Answer text={m.text} sourceCount={m.upTo ?? m.sources.length} onOpenSource={onOpenSource} />
+        {m.rewriteError && <p className="text-danger m-0 font-sans text-[13px]">{m.rewriteError}</p>}
+      </>
+    );
 
   const showSources = m.sources.length > 0 && (m.status === "done" || m.status === "streaming");
 
   return (
     <div className="flex flex-col gap-3">
       {body}
-      {showSources && <SourceTabs sources={m.sources} selectedN={selectedN} onSelect={onOpenSource} />}
+      {showSources && (
+        <SourceTabs
+          sources={m.sources}
+          selectedN={selectedN}
+          usedUpTo={m.upTo}
+          onSelect={m.status === "done" ? onSelectTab : onOpenSource}
+        />
+      )}
       {m.status === "done" && (
         <div className="flex items-center gap-1">
           <button type="button" className={iconButtonClass} onClick={onCopy} aria-label="Copy answer">

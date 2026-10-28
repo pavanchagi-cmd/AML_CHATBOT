@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ChunkMatch } from "@/lib/pinecone";
-import { buildPrompt, isNotFound, mightBeNotFound, relevantSources, SYSTEM_INSTRUCTION } from "@/lib/rag";
+import {
+  buildPrompt,
+  isNotFound,
+  mightBeNotFound,
+  passageInstruction,
+  relevantSources,
+  SYSTEM_INSTRUCTION,
+} from "@/lib/rag";
 import { rateLimited } from "@/lib/rate-limit";
 
 const match = (id: string, score: number, extra: Partial<ChunkMatch["metadata"]> = {}): ChunkMatch => ({
@@ -53,6 +60,17 @@ describe("buildPrompt", () => {
     expect(prompt).not.toContain("msg 1");
     expect(prompt).toContain("Analyst: msg 2\nAssistant: msg 3\nAnalyst: msg 4\nAssistant: msg 5");
     expect(prompt.indexOf("Recent conversation")).toBeLessThan(prompt.indexOf("Question:"));
+  });
+});
+
+describe("rewriting from passages 1..n", () => {
+  it("asks for one brief point per passage, before the question", () => {
+    const sources = relevantSources([match("a", 0.9), match("b", 0.7)], 0.5);
+    const prompt = buildPrompt(sources, [], "Mule red flags?", { coverEachBlock: true });
+    expect(prompt).toContain("use only blocks [1] to [2], in order. Keep it brief: one short point per block");
+    expect(prompt.indexOf("Instruction for this answer")).toBeLessThan(prompt.indexOf("Question:"));
+    expect(passageInstruction(1)).toContain("use only block [1]");
+    expect(buildPrompt(sources, [], "q")).not.toContain("Instruction for this answer");
   });
 });
 

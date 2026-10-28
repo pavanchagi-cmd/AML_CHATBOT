@@ -19,6 +19,8 @@ export type BotMessage = {
   role: "bot";
   // The question this answers; its words are highlighted in the passages.
   question: string;
+  // "Search in" scope used for the question, reused when rewriting from passages 1..n.
+  scope?: string;
   status: "thinking" | "streaming" | "done" | "notfound" | "error";
   phase?: string;
   text: string;
@@ -26,6 +28,13 @@ export type BotMessage = {
   questionId?: string;
   rating?: Rating | null;
   error?: string;
+  // Source tab n rewrites the answer from passages 1..n. `upTo` is the version on screen
+  // (undefined = the original answer); finished versions are kept so switching back is instant.
+  original?: string;
+  upTo?: number;
+  versions?: Record<number, string>;
+  rewriting?: number;
+  rewriteError?: string;
 };
 
 export type ChatMessage = UserMessage | BotMessage;

@@ -67,7 +67,21 @@ function blockHeader(s: Source) {
 }
 
 // Numbered context blocks in rank order, then recent turns (for follow-ups only), then the question.
-export function buildPrompt(sources: Source[], history: HistoryMessage[], question: string) {
+// When an analyst picks source tab n, the answer is rewritten from passages 1 to n only.
+export function passageInstruction(count: number) {
+  const range = count === 1 ? "block [1]" : `blocks [1] to [${count}]`;
+  return (
+    `Instruction for this answer: use only ${range}, in order. Keep it brief: one short point per block, ` +
+    `cited with its number. If a block does not relate to the question, say so in a few words.`
+  );
+}
+
+export function buildPrompt(
+  sources: Source[],
+  history: HistoryMessage[],
+  question: string,
+  opts: { coverEachBlock?: boolean } = {},
+) {
   const context = sources.map((s) => `[${s.n}] (${blockHeader(s)})\n${s.text}`).join("\n\n");
   const recent = history
     .slice(-HISTORY_IN_PROMPT)
@@ -76,6 +90,7 @@ export function buildPrompt(sources: Source[], history: HistoryMessage[], questi
   return [
     `Context:\n${context}`,
     recent ? `Recent conversation (for follow-up questions only):\n${recent}` : null,
+    opts.coverEachBlock ? passageInstruction(sources.length) : null,
     `Question: ${question}`,
   ]
     .filter(Boolean)

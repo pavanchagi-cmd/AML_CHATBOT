@@ -47,13 +47,29 @@ export const readyDoc = {
 export async function mockApi(page: Page, opts: { documents?: unknown[] } = {}) {
   const feedback: unknown[] = [];
   const setupCalls: unknown[] = [];
+  const chatCalls: { question: string; upTo?: number }[] = [];
   await page.route("**/api/documents", (r) => r.fulfill({ json: opts.documents ?? [readyDoc] }));
   await page.route("**/api/feedback", (r: Route) => {
     feedback.push(JSON.parse(r.request().postData() ?? "{}"));
     return r.fulfill({ status: 204 });
   });
   await page.route("**/api/chat", (r) => {
-    const { question } = JSON.parse(r.request().postData() ?? "{}") as { question: string };
+    const { question, upTo } = JSON.parse(r.request().postData() ?? "{}") as { question: string; upTo?: number };
+    chatCalls.push({ question, upTo });
+    if (upTo) {
+      const points = sources
+        .slice(0, upTo)
+        .map((s) => `- ${s.section}: brief point [${s.n}]`)
+        .join("\n");
+      return r.fulfill({
+        contentType: "application/x-ndjson",
+        body: ndjson([
+          { type: "sources", sources: sources.slice(0, upTo) },
+          { type: "delta", text: points },
+          { type: "done" },
+        ]),
+      });
+    }
     const body = /France/i.test(question)
       ? ndjson([{ type: "notfound", questionId: "00000000-0000-4000-8000-000000000002" }])
       : ndjson([
@@ -122,5 +138,5 @@ export async function mockApi(page: Page, opts: { documents?: unknown[] } = {}) 
       },
     }),
   );
-  return { feedback, setupCalls };
+  return { feedback, setupCalls, chatCalls };
 }
