@@ -1,4 +1,5 @@
 import { list } from "@vercel/blob";
+import { blobCredentialsConfigured } from "@/lib/blob";
 import { count } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { config } from "@/lib/env";
@@ -29,11 +30,22 @@ const REQUIRED = [
   ["GEMINI_CHAT_MODEL", "Gemini model that writes the answers"],
   ["PINECONE_API_KEY", "Pinecone API key"],
   ["DATABASE_URL", "Added by the Neon Postgres integration (Storage tab)"],
-  ["BLOB_READ_WRITE_TOKEN", "Added by the Vercel Blob integration (Storage tab)"],
   ["ADMIN_PASSCODE", "Passcode for upload, delete and re-index"],
 ] as const;
 
 const isSet = (name: string) => Boolean(process.env[name]?.trim());
+
+// Blob stores connect with OIDC (BLOB_STORE_ID) or, on older setups, BLOB_READ_WRITE_TOKEN.
+function blobSetting(): Check {
+  const name = "Vercel Blob (BLOB_STORE_ID or BLOB_READ_WRITE_TOKEN)";
+  if (isSet("BLOB_STORE_ID")) return { name, status: "ok", detail: "Connected with OIDC (BLOB_STORE_ID is set)." };
+  if (isSet("BLOB_READ_WRITE_TOKEN")) return { name, status: "ok", detail: "BLOB_READ_WRITE_TOKEN is set." };
+  return {
+    name,
+    status: "missing",
+    detail: "Not set. Connect a Blob store to this project in the Storage tab (all environments), then redeploy.",
+  };
+}
 
 function settings(): Check[] {
   const required: Check[] = REQUIRED.map(([name, purpose]) =>
@@ -50,7 +62,7 @@ function settings(): Check[] {
     ["RAG_TOP_K", String(config.ragTopK())],
     ["RAG_MIN_SCORE", String(config.ragMinScore())],
   ].map(([name, value]) => ({ name, status: "ok", detail: `${isSet(name) ? "Set to" : "Default:"} ${value}` }));
-  return [...required, ...optional];
+  return [...required, blobSetting(), ...optional];
 }
 
 function explain(err: unknown): string {
@@ -70,8 +82,13 @@ function withTimeout<T>(promise: Promise<T>, ms = 10_000): Promise<T> {
 }
 
 async function run(name: string, needs: string[], fn: () => Promise<string>): Promise<Check> {
-  const missing = needs.filter((n) => !isSet(n));
-  if (missing.length) return { name, status: "missing", detail: `Skipped: set ${missing.join(", ")} first.` };
+  const missing = needs.filter((n) => (n === "BLOB" ? !blobCredentialsConfigured() : !isSet(n)));
+  if (missing.length)
+    return {
+      name,
+      status: "missing",
+      detail: `Skipped: set ${missing.map((n) => (n === "BLOB" ? "up a Blob store connection" : n)).join(", ")} first.`,
+    };
   try {
     return { name, status: "ok", detail: await withTimeout(fn()) };
   } catch (err) {
@@ -125,7 +142,7 @@ export async function setupReport(): Promise<SetupReport> {
     run("Vector index (Pinecone)", ["PINECONE_API_KEY"], checkPinecone),
     run("Embeddings (Gemini)", ["GEMINI_API_KEY"], checkEmbeddings),
     run("Answer model (Gemini)", ["GEMINI_API_KEY", "GEMINI_CHAT_MODEL"], checkChatModel),
-    run("File storage (Vercel Blob)", ["BLOB_READ_WRITE_TOKEN"], checkBlob),
+    run("File storage (Vercel Blob)", ["BLOB"], checkBlob),
   ]);
   return { environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown", settings: settings(), services };
 }

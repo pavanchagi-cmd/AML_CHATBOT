@@ -28,3 +28,15 @@ export async function uploadBlob(pathname: string, body: Buffer, contentType: st
 export async function deleteBlob(url: string) {
   if (isBlobStoreUrl(url)) await del(url);
 }
+
+// Vercel now connects Blob stores with OIDC: deployments get BLOB_STORE_ID (and a per-request OIDC
+// token) instead of BLOB_READ_WRITE_TOKEN. Either works for the SDK.
+export function blobCredentialsConfigured() {
+  return Boolean(process.env.BLOB_STORE_ID?.trim() || process.env.BLOB_READ_WRITE_TOKEN?.trim());
+}
+
+// Each upload gets its own folder, so the signed upload URL can be scoped to that exact path.
+export const UPLOAD_PREFIX = "documents/";
+export function isAllowedUploadPath(pathname: string) {
+  return pathname.startsWith(UPLOAD_PREFIX) && !pathname.includes("..") && !pathname.includes("\\");
+}

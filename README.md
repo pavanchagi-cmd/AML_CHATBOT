@@ -68,21 +68,21 @@ If the library doesn't cover a question, the app says so instead of guessing, an
 
 ## Environment variables
 
-| Variable                            | Purpose                                                                     | Default                           |
-| ----------------------------------- | --------------------------------------------------------------------------- | --------------------------------- |
-| `GEMINI_API_KEY`                    | Gemini API key from Google AI Studio                                        | required                          |
-| `GEMINI_CHAT_MODEL`                 | Gemini chat model id (a current stable Flash model)                         | required                          |
-| `GEMINI_EMBED_MODEL`                | Embedding model                                                             | `gemini-embedding-001`            |
-| `EMBED_DIM`                         | Embedding dimensions (must match the Pinecone index)                        | `768`                             |
-| `PINECONE_API_KEY`                  | Pinecone API key                                                            | required                          |
-| `PINECONE_INDEX`                    | Index name                                                                  | `aml-compass`                     |
-| `PINECONE_NAMESPACE`                | Namespace inside the index                                                  | `default`                         |
-| `DATABASE_URL`                      | Neon Postgres connection string (set by the Vercel Neon integration)        | required                          |
-| `BLOB_READ_WRITE_TOKEN`             | Vercel Blob token (set by the Vercel Blob integration)                      | required                          |
-| `ADMIN_PASSCODE`                    | Passcode for upload, delete and re-index                                    | required                          |
-| `RAG_TOP_K`                         | Passages retrieved per question                                             | `8`                               |
-| `RAG_MIN_SCORE`                     | Minimum cosine score for a passage to count as relevant                     | `0.55` (tune with real documents) |
-| `PINECONE_CLOUD`, `PINECONE_REGION` | Where `pinecone:create-index` creates the index, e.g. `aws` and `us-east-1` | only for that script              |
+| Variable                                   | Purpose                                                                                                           | Default                           |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `GEMINI_API_KEY`                           | Gemini API key from Google AI Studio                                                                              | required                          |
+| `GEMINI_CHAT_MODEL`                        | Gemini chat model id (a current stable Flash model)                                                               | required                          |
+| `GEMINI_EMBED_MODEL`                       | Embedding model                                                                                                   | `gemini-embedding-001`            |
+| `EMBED_DIM`                                | Embedding dimensions (must match the Pinecone index)                                                              | `768`                             |
+| `PINECONE_API_KEY`                         | Pinecone API key                                                                                                  | required                          |
+| `PINECONE_INDEX`                           | Index name                                                                                                        | `aml-compass`                     |
+| `PINECONE_NAMESPACE`                       | Namespace inside the index                                                                                        | `default`                         |
+| `DATABASE_URL`                             | Neon Postgres connection string (set by the Vercel Neon integration)                                              | required                          |
+| `BLOB_STORE_ID` or `BLOB_READ_WRITE_TOKEN` | Vercel Blob credentials, set when you connect a Blob store (new stores connect with OIDC and set `BLOB_STORE_ID`) | required                          |
+| `ADMIN_PASSCODE`                           | Passcode for upload, delete and re-index                                                                          | required                          |
+| `RAG_TOP_K`                                | Passages retrieved per question                                                                                   | `8`                               |
+| `RAG_MIN_SCORE`                            | Minimum cosine score for a passage to count as relevant                                                           | `0.55` (tune with real documents) |
+| `PINECONE_CLOUD`, `PINECONE_REGION`        | Where `pinecone:create-index` creates the index, e.g. `aws` and `us-east-1`                                       | only for that script              |
 
 A missing required variable doesn't break the build. The request that needs it fails with "The app isn't fully set up yet", and the server log names the variable.
 
@@ -145,12 +145,12 @@ npm run seed
 - Files in a subfolder named after a category get that category, for example `seed-docs/Internal SOP/pattern-sop.pdf` or `seed-docs/Indian AML rules/pml-rules.pdf`. The categories are `FATF report`, `Indian AML rules`, `Internal SOP` and `Other`.
 - A file already in the library as Ready, with the same file name, is skipped, so the script can be re-run.
 
-Seeding needs every service variable in `.env.local`, including `BLOB_READ_WRITE_TOKEN`. It runs locally with no time limit, which makes it the way to ingest very large reports that time out in the browser upload.
+Seeding needs every service variable in `.env.local`, including the Blob credentials: `vercel env pull .env.local` brings `BLOB_STORE_ID` and a short-lived `VERCEL_OIDC_TOKEN` (pull again if it has expired), or set a `BLOB_READ_WRITE_TOKEN`. It runs locally with no time limit, which makes it the way to ingest very large reports that time out in the browser upload.
 
 ## Deploying to Vercel
 
 1. In the Vercel dashboard, go to **Add New → Project**, import this GitHub repository and keep the **Next.js** framework preset. `vercel.json` also pins the framework.
-2. In the project's **Storage** tab, add **Neon Postgres** (sets `DATABASE_URL`) and **Vercel Blob** (sets `BLOB_READ_WRITE_TOKEN`). Files are stored as private blobs.
+2. In the project's **Storage** tab, add **Neon Postgres** (sets `DATABASE_URL`) and **Vercel Blob** (sets `BLOB_STORE_ID`; older stores set `BLOB_READ_WRITE_TOKEN`). Files are stored as private blobs and uploaded through short-lived presigned URLs.
 3. In **Settings → Environment Variables**, add the remaining variables from the table above for Production, Preview and Development.
 4. Create the Pinecone index and run the migrations against the production database (see above).
 5. Deploy. Every push to `main` deploys to production; other branches and pull requests get preview URLs.

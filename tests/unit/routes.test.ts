@@ -48,8 +48,8 @@ describe("admin-only routes", () => {
 
   it("do not hand out upload tokens without the passcode", async () => {
     const body = {
-      type: "blob.generate-client-token",
-      payload: { pathname: "documents/a.pdf", clientPayload: null, multipart: false },
+      type: "blob.generate-presigned-url",
+      payload: { pathname: "documents/abc/a.pdf", clientPayload: null, multipart: false },
     };
     expect((await blobToken(json(body))).status).toBe(401);
   });
