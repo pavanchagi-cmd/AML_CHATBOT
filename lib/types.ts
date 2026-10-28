@@ -17,6 +17,8 @@ export type UserMessage = { id: string; role: "user"; text: string };
 export type BotMessage = {
   id: string;
   role: "bot";
+  // The question this answers; its words are highlighted in the passages.
+  question: string;
   status: "thinking" | "streaming" | "done" | "notfound" | "error";
   phase?: string;
   text: string;

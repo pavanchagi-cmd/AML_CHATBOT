@@ -1,9 +1,11 @@
 "use client";
 
 import { Copy, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Answer } from "@/components/Answer";
 import { iconButtonClass } from "@/components/ui";
 import { SourceTabs } from "@/components/SourceTabs";
 import type { BotMessage, Rating } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export function UserBubble({ text }: { text: string }) {
   return (
@@ -63,17 +65,8 @@ export function BotAnswer({
       </Notice>
     );
   else if (m.status === "error") body = <Notice title="No answer">{m.error}</Notice>;
-  // Plain paragraphs for now; markdown with citation chips arrives with the chat pipeline (step 5).
-  else
-    body = (
-      <div className="max-w-[68ch] font-serif text-[16.5px] leading-[1.65]">
-        {m.text.split(/\n{2,}/).map((p, i) => (
-          <p key={i} className="mb-[0.75em]">
-            {p}
-          </p>
-        ))}
-      </div>
-    );
+  else if (m.status === "streaming" && !m.text) body = <Thinking phase={m.phase} />;
+  else body = <Answer text={m.text} sourceCount={m.sources.length} onOpenSource={onOpenSource} />;
 
   const showSources = m.sources.length > 0 && (m.status === "done" || m.status === "streaming");
 
@@ -108,7 +101,7 @@ export function BotAnswer({
           {m.sources.length > 0 && (
             <button
               type="button"
-              className={`${iconButtonClass} narrow:inline-flex hidden`}
+              className={cn(iconButtonClass, "narrow:inline-flex hidden")}
               onClick={() => onOpenSource(1)}
             >
               Sources ({m.sources.length})
