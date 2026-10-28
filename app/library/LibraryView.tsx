@@ -1,6 +1,6 @@
 "use client";
 
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 import { useCallback, useEffect, useState } from "react";
 import { DocumentsTable } from "@/components/DocumentsTable";
 import { PipelineProgress, type PipelineState } from "@/components/PipelineProgress";
@@ -35,7 +35,12 @@ function savePasscode(value: string | null) {
   }
 }
 
-// The Blob client only reports "Failed to retrieve the client token", so ask the token route
+// documents/<random id>/<file name>: unique, so an upload never overwrites another file.
+function uploadPath(fileName: string) {
+  return `documents/${crypto.randomUUID()}/${fileName.replace(/[\\/]/g, "_")}`;
+}
+
+// The Blob client only reports "Failed to retrieve the presigned URL", so ask the token route
 // directly for its reason (a token request uploads nothing).
 async function explainUploadFailure(err: unknown, fileName: string, code: string): Promise<string> {
   const fallback = "The upload didn't go through. Check your connection and try again.";
@@ -44,8 +49,8 @@ async function explainUploadFailure(err: unknown, fileName: string, code: string
       method: "POST",
       headers: { "content-type": "application/json", [ADMIN_HEADER]: code },
       body: JSON.stringify({
-        type: "blob.generate-client-token",
-        payload: { pathname: `documents/${fileName}`, clientPayload: null, multipart: false },
+        type: "blob.generate-presigned-url",
+        payload: { pathname: uploadPath(fileName), clientPayload: null, multipart: false },
       }),
     });
     if (!res.ok) return (await apiError(res, fallback)).message;
@@ -180,7 +185,7 @@ export function LibraryView() {
     try {
       let blobUrl: string;
       try {
-        const blob = await upload(`documents/${file.name}`, file, {
+        const blob = await uploadPresigned(uploadPath(file.name), file, {
           access: "private",
           handleUploadUrl: "/api/blob",
           headers: { [ADMIN_HEADER]: code },

@@ -181,8 +181,8 @@ describe("clear errors", () => {
         method: "POST",
         headers: { "content-type": "application/json", "x-admin-passcode": "s3cret" },
         body: JSON.stringify({
-          type: "blob.generate-client-token",
-          payload: { pathname: "documents/a.pdf", clientPayload: null, multipart: false },
+          type: "blob.generate-presigned-url",
+          payload: { pathname: "documents/abc/a.pdf", clientPayload: null, multipart: false },
         }),
       }),
     );
