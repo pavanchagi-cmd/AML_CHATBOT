@@ -1,10 +1,10 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, index, integer, pgTable, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import type { DocumentStatus } from "@/lib/types";
 
 // No user names or customer data are stored (spec section 5).
 
-export const DOCUMENT_STATUSES = ["processing", "ready", "failed"] as const;
-export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
+export const DOCUMENT_STATUSES = ["processing", "ready", "failed"] as const satisfies readonly DocumentStatus[];
 
 export const RATINGS = ["up", "down"] as const;
 

@@ -1,18 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { MAX_UPLOAD_BYTES, TOO_LARGE_MESSAGE, UNSUPPORTED_FILE_MESSAGE, fileKind } from "@/lib/files";
 import { cn } from "@/lib/utils";
 import { CATEGORIES, buttonClass, selectClass, type Category } from "@/components/ui";
 
-export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
-export const ALLOWED_EXTENSIONS = ["pdf", "docx", "txt", "md"] as const;
-
 // Returns an error message, or null when the file can be uploaded.
 export function checkFile(file: File): string | null {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (!(ALLOWED_EXTENSIONS as readonly string[]).includes(ext))
-    return "This file type isn't supported. Use PDF, DOCX, TXT or MD.";
-  if (file.size > MAX_UPLOAD_BYTES) return "This file is over 20 MB. Split it into smaller files and upload each one.";
+  if (!fileKind(file.name)) return UNSUPPORTED_FILE_MESSAGE;
+  if (file.size > MAX_UPLOAD_BYTES) return TOO_LARGE_MESSAGE;
   return null;
 }
 

@@ -31,3 +31,18 @@ export type ChatMessage = UserMessage | BotMessage;
 export function where(s: Pick<Source, "section" | "page">) {
   return [s.section, s.page ? `page ${s.page}` : ""].filter(Boolean).join(", ");
 }
+
+export type DocumentStatus = "processing" | "ready" | "failed";
+
+// A library document as the browser receives it (no file URL: files are private).
+export type DocumentDto = {
+  id: string;
+  title: string;
+  category: string;
+  fileName: string;
+  pageCount: number | null;
+  chunkCount: number;
+  status: DocumentStatus;
+  error: string | null;
+  createdAt: string;
+};

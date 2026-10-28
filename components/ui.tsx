@@ -2,8 +2,7 @@ import { cn } from "@/lib/utils";
 
 // Small building blocks shared by the three screens, styled like the prototype.
 
-export const CATEGORIES = ["FATF report", "Indian AML rules", "Internal SOP", "Other"] as const;
-export type Category = (typeof CATEGORIES)[number];
+export { CATEGORIES, type Category } from "@/lib/categories";
 
 export function TopBar({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
