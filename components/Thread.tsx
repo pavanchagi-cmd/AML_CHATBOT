@@ -22,12 +22,13 @@ type Props = {
   libraryEmpty: boolean;
   onSuggest: (q: string) => void;
   onOpenSource: (messageId: string, n: number) => void;
+  onSelectTab: (messageId: string, n: number) => void;
   onCopy: (messageId: string) => void;
   onRate: (messageId: string, rating: Rating) => void;
 };
 
 export const Thread = forwardRef<HTMLDivElement, Props>(function Thread(
-  { messages, selection, libraryEmpty, onSuggest, onOpenSource, onCopy, onRate },
+  { messages, selection, libraryEmpty, onSuggest, onOpenSource, onSelectTab, onCopy, onRate },
   ref,
 ) {
   return (
@@ -74,6 +75,7 @@ export const Thread = forwardRef<HTMLDivElement, Props>(function Thread(
                 message={m}
                 selectedN={selection?.messageId === m.id ? selection.n : null}
                 onOpenSource={(n) => onOpenSource(m.id, n)}
+                onSelectTab={(n) => onSelectTab(m.id, n)}
                 onCopy={() => onCopy(m.id)}
                 onRate={(r) => onRate(m.id, r)}
               />

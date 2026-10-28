@@ -20,6 +20,8 @@ const Body = z.object({
     .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().max(4000) }))
     .max(6)
     .default([]),
+  // Rewrite the answer from passages 1..upTo only (the analyst picked source tab upTo).
+  upTo: z.number().int().min(1).max(50).optional(),
 });
 
 const NOT_SET_UP =
@@ -40,7 +42,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return errorResponse(400, "bad_request", "Questions must be between 2 and 1,000 characters.");
   }
-  const { question, scope, history } = parsed.data;
+  const { question, scope, history, upTo } = parsed.data;
 
   return ndjsonResponse<ChatEvent>(async (emit) => {
     const started = Date.now();
@@ -54,9 +56,12 @@ export async function POST(req: Request) {
       emit({ type: "error", message: describe(err, SEARCH_UNAVAILABLE_MESSAGE) });
       return;
     }
-    const { sources, topScore, sourceIds } = retrieval;
+    const { topScore, sourceIds } = retrieval;
+    const sources = upTo ? retrieval.sources.slice(0, upTo) : retrieval.sources;
 
     const log = async (answered: boolean, answer: string | null) => {
+      // A rewrite from selected passages is not a new question, so it isn't logged again.
+      if (upTo) return undefined;
       try {
         await logQuestion({
           id: questionId,
@@ -87,7 +92,10 @@ export async function POST(req: Request) {
     let text = "";
     let sent = 0;
     try {
-      for await (const delta of generateStream(buildPrompt(sources, history, question), SYSTEM_INSTRUCTION)) {
+      for await (const delta of generateStream(
+        buildPrompt(sources, history, question, { coverEachBlock: Boolean(upTo) }),
+        SYSTEM_INSTRUCTION,
+      )) {
         text += delta;
         if (mightBeNotFound(text)) continue;
         emit({ type: "delta", text: text.slice(sent) });

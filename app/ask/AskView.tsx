@@ -63,7 +63,16 @@ export function AskView() {
     setMessages((ms) => [
       ...ms,
       { id: newId(), role: "user", text: question },
-      { id: botId, role: "bot", question, status: "thinking", phase: "Searching the library", text: "", sources: [] },
+      {
+        id: botId,
+        role: "bot",
+        question,
+        scope,
+        status: "thinking",
+        phase: "Searching the library",
+        text: "",
+        sources: [],
+      },
     ]);
     setBusy(true);
     setSelection(null);
@@ -126,6 +135,65 @@ export function AskView() {
   function openSource(messageId: string, n: number) {
     setSelection({ messageId, n });
     if (matchMedia("(max-width: 1100px)").matches) setDrawerOpen(true);
+  }
+
+  // Source tab n: show passage n, and rewrite the answer briefly from passages 1..n (tab 1 = original answer).
+  async function selectTab(messageId: string, n: number) {
+    openSource(messageId, n);
+    const m = messages.find((x) => x.id === messageId);
+    if (!m || m.role !== "bot" || m.status !== "done" || busy || m.rewriting) return;
+    const original = m.original ?? m.text;
+    if (n === 1 || n > m.sources.length) {
+      updateBot(messageId, () => ({ text: original, upTo: undefined, rewriteError: undefined }));
+      return;
+    }
+    const saved = m.versions?.[n];
+    if (saved) {
+      updateBot(messageId, () => ({ text: saved, upTo: n, rewriteError: undefined }));
+      return;
+    }
+
+    const shown = { text: m.text, upTo: m.upTo };
+    const restore = (error: string) =>
+      updateBot(messageId, () => ({ ...shown, rewriting: undefined, rewriteError: error }));
+    updateBot(messageId, () => ({ original, rewriting: n, rewriteError: undefined }));
+    setBusy(true);
+    let text = "";
+    let finished = false;
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question: m.question, scope: m.scope ?? "all", history: [], upTo: n }),
+      });
+      if (!res.ok) {
+        restore((await apiError(res, OFFLINE)).message);
+        finished = true;
+        return;
+      }
+      await readNdjson<ChatEvent>(res, (event) => {
+        if (event.type === "delta") {
+          text += event.text;
+          updateBot(messageId, () => ({ text, upTo: n, rewriting: undefined }));
+          scrollToEnd(true);
+        } else if (event.type === "done") {
+          finished = true;
+          const done = text;
+          updateBot(messageId, (cur) => ({ versions: { ...cur.versions, [n]: done } }));
+        } else if (event.type === "notfound") {
+          finished = true;
+          restore(`Passages 1–${n} don't add anything to this answer.`);
+        } else if (event.type === "error") {
+          finished = true;
+          restore(event.message);
+        }
+      });
+      if (!finished) restore(CUT_OFF);
+    } catch {
+      if (!finished) restore(OFFLINE);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function copy(messageId: string) {
@@ -194,6 +262,7 @@ export function AskView() {
           libraryEmpty={readyCount === 0}
           onSuggest={ask}
           onOpenSource={openSource}
+          onSelectTab={selectTab}
           onCopy={copy}
           onRate={rate}
         />
