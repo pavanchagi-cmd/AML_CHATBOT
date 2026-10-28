@@ -35,6 +35,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  // The SQL migrations are read at runtime by the admin "Create database tables" action.
+  outputFileTracingIncludes: { "/api/admin/setup": ["./drizzle/**/*"] },
   turbopack: {
     rules: {
       "*.css": {

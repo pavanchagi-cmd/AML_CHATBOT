@@ -31,7 +31,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await page.getByLabel("Admin passcode").fill("anything");
       await page.getByRole("button", { name: "Unlock" }).click();
       await page.getByRole("button", { name: "Run setup check" }).click();
-      await expect(page.getByText("3 items need attention.", { exact: false })).toBeVisible();
+      await expect(page.getByText("4 items need attention.", { exact: false })).toBeVisible();
       const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
       expect(results.violations.map((v) => v.id)).toEqual([]);
     });

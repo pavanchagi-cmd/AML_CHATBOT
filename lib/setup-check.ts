@@ -3,13 +3,24 @@ import { count } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { config } from "@/lib/env";
 import { ai, embed } from "@/lib/gemini";
+import { isMissingTable } from "@/lib/db-errors";
 import { pinecone } from "@/lib/pinecone";
+import { inspectIndex } from "@/lib/pinecone-admin";
 import { httpStatusOf } from "@/lib/retry";
+import type { Check, SetupAction, SetupReport } from "@/lib/setup-check-types";
 
 // Admin-only diagnostics: which settings are missing and whether each service answers.
 // Secret values are never returned, only whether they are set.
 
-import type { Check, SetupReport } from "@/lib/setup-check-types";
+// A problem the Setup check can fix with one click.
+class FixableError extends Error {
+  constructor(
+    message: string,
+    public readonly action: SetupAction,
+  ) {
+    super(message);
+  }
+}
 
 export type { Check, SetupReport };
 
@@ -64,6 +75,7 @@ async function run(name: string, needs: string[], fn: () => Promise<string>): Pr
   try {
     return { name, status: "ok", detail: await withTimeout(fn()) };
   } catch (err) {
+    if (err instanceof FixableError) return { name, status: "error", detail: err.message, action: err.action };
     return { name, status: "error", detail: explain(err) };
   }
 }
@@ -74,33 +86,22 @@ async function checkDatabase() {
     const [questions] = await db().select({ n: count() }).from(schema.questions);
     return `Connected. ${row.n} document(s), ${questions.n} logged question(s).`;
   } catch (err) {
-    const text = err instanceof Error ? `${err.message} ${String((err as { cause?: unknown }).cause ?? "")}` : "";
-    if (/relation .* does not exist/i.test(text)) {
-      throw new Error("Connected, but the tables don't exist yet. Run the database migrations (npm run db:migrate).");
-    }
+    if (isMissingTable(err)) throw new FixableError("Connected, but the tables don't exist yet.", "migrate");
     throw err;
   }
 }
 
 async function checkPinecone() {
-  const name = config.pineconeIndex();
-  const indexes = (await pinecone().indexes.list()).indexes ?? [];
-  if (!indexes.some((i) => i.name === name)) {
-    throw new Error(`Key works, but there is no index named "${name}". Run npm run pinecone:create-index.`);
+  const index = await inspectIndex();
+  if (index.state === "missing") {
+    throw new FixableError(`Key works, but there is no index named "${index.name}" yet.`, "create-index");
   }
-  const model = await pinecone().indexes.describe(name);
-  const field = model.schema.fields["_values"];
-  if (!field || !("type" in field) || field.type !== "dense_vector") {
-    throw new Error(`Index "${name}" is not a dense vector index.`);
-  }
-  if (field.dimension !== config.embedDim() || field.metric !== "cosine") {
-    throw new Error(
-      `Index "${name}" has dimension ${field.dimension} and metric ${field.metric}; it needs ${config.embedDim()} and cosine.`,
-    );
-  }
-  const stats = await pinecone().index({ name, namespace: config.pineconeNamespace() }).describeIndexStats();
+  if (index.state === "wrong-shape") throw new Error(index.message);
+  const stats = await pinecone()
+    .index({ name: index.name, namespace: config.pineconeNamespace() })
+    .describeIndexStats();
   const inNamespace = stats.namespaces?.[config.pineconeNamespace()]?.recordCount ?? 0;
-  return `Index "${name}" is ready (${field.dimension} dimensions, cosine). ${inNamespace} passage(s) indexed.`;
+  return `Index "${index.name}" is ready (${index.dimension} dimensions, cosine). ${inNamespace} passage(s) indexed.`;
 }
 
 async function checkEmbeddings() {
