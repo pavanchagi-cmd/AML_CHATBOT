@@ -23,6 +23,18 @@ for (const colorScheme of ["light", "dark"] as const) {
         );
       });
     }
+
+    test("setup check panel has no WCAG AA violations", async ({ page }) => {
+      await mockApi(page);
+      await page.goto("/library");
+      await page.getByRole("button", { name: "Admin sign-in" }).click();
+      await page.getByLabel("Admin passcode").fill("anything");
+      await page.getByRole("button", { name: "Unlock" }).click();
+      await page.getByRole("button", { name: "Run setup check" }).click();
+      await expect(page.getByText("3 items need attention.", { exact: false })).toBeVisible();
+      const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      expect(results.violations.map((v) => v.id)).toEqual([]);
+    });
   });
 }
 

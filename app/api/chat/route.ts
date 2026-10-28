@@ -22,7 +22,7 @@ const Body = z.object({
     .default([]),
 });
 
-const NOT_SET_UP = "The app isn't fully set up yet. Ask an admin to check the settings.";
+const NOT_SET_UP = "The app isn't fully set up yet. An admin can run the Setup check in the Library to see what's missing.";
 
 function describe(err: unknown, fallback: string) {
   console.error(err instanceof Error ? err.message : err);

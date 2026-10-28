@@ -4,6 +4,7 @@ import { upload } from "@vercel/blob/client";
 import { useCallback, useEffect, useState } from "react";
 import { DocumentsTable } from "@/components/DocumentsTable";
 import { PipelineProgress, type PipelineState } from "@/components/PipelineProgress";
+import { SetupCheck } from "@/components/SetupCheck";
 import { useToast } from "@/components/Toast";
 import { UploadZone, checkFile } from "@/components/UploadZone";
 import { Lead, Page, PageInner, Panel, TopBar, buttonClass, iconButtonClass } from "@/components/ui";
@@ -292,6 +293,7 @@ export function LibraryView() {
             }}
           />
         )}
+        {passcode && <SetupCheck passcode={passcode} onUnauthorized={() => lock("Enter the admin passcode again.")} />}
         <UploadZone onFile={handleFile} disabled={busy} />
         {pipeline && <PipelineProgress state={pipeline} />}
         {listError ? (

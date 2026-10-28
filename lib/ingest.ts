@@ -19,7 +19,7 @@ class UserFacingError extends Error {}
 
 function friendlyMessage(err: unknown): string {
   if (err instanceof ExtractionError || err instanceof UserFacingError) return err.message;
-  if (err instanceof MissingEnvError) return "The app isn't fully set up yet. Ask an admin to check the settings.";
+  if (err instanceof MissingEnvError) return "The app isn't fully set up yet. An admin can run the Setup check in the Library to see what's missing.";
   if (httpStatusOf(err) === 429) return "The embedding service is busy. Try again in a few minutes.";
   return "Indexing failed. Try again, and if it keeps failing, check the file opens normally.";
 }

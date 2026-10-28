@@ -79,3 +79,16 @@ test("security headers are set", async ({ page }) => {
   expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
   expect(headers["x-powered-by"]).toBeUndefined();
 });
+
+test("admins can run the setup check from the Library", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/library");
+  await expect(page.getByRole("button", { name: "Run setup check" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Admin sign-in" }).click();
+  await page.getByLabel("Admin passcode").fill("anything");
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await page.getByRole("button", { name: "Run setup check" }).click();
+  await expect(page.getByText(/3 items need attention/)).toBeVisible();
+  await expect(page.getByText('Key works, but there is no index named "aml-compass".')).toBeVisible();
+  await expect(page.getByText("Environment: preview.")).toBeVisible();
+});

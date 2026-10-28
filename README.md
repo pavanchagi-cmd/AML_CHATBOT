@@ -102,6 +102,16 @@ PINECONE_CLOUD=aws PINECONE_REGION=us-east-1 npm run pinecone:create-index
 
 This creates a serverless index named `PINECONE_INDEX` with one dense vector field of `EMBED_DIM` (768) dimensions and the cosine metric, and waits until it's ready. If the index already exists, the script checks that its dimension and metric match and changes nothing. Choose the cloud and region that suit your data-residency needs.
 
+## Setup check
+
+In **Library**, choose **Admin sign-in**, enter `ADMIN_PASSCODE`, then **Run setup check**. It lists:
+
+- every required setting, and whether it is set (secret values are never shown);
+- the values in use for optional settings;
+- whether the database (and its tables), the Pinecone index (with its dimension, metric and passage count), Gemini embeddings, the Gemini answer model and Vercel Blob respond. Problems come with the next step to take, for example "run npm run db:migrate".
+
+Vercel applies new environment variables only to new deployments, so redeploy after changing them.
+
 ## Database migrations
 
 The schema is in `lib/db/schema.ts`; generated SQL migrations are in `drizzle/`.

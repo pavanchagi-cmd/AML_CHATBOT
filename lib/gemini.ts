@@ -8,7 +8,7 @@ export type EmbedTaskType = "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY";
 export const EMBED_BATCH_SIZE = 100;
 
 let client: GoogleGenAI | undefined;
-function ai() {
+export function ai() {
   return (client ??= new GoogleGenAI({ apiKey: config.geminiApiKey() }));
 }
 
