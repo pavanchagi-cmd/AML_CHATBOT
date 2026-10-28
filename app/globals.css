@@ -30,6 +30,8 @@
   --amber: #9c6608;
   --amber-soft: #f5e6c4;
   --amber-line: #e2c78a;
+  /* Amber text on --amber-soft. Darker than --amber in light mode to meet WCAG AA (4.79:1; --amber gives 3.94:1). */
+  --amber-ink: #8a5a07;
   --danger: #a13a2b;
   --danger-soft: #f5deda;
   --shadow: 0 1px 2px rgba(23, 33, 31, 0.06), 0 8px 24px rgba(23, 33, 31, 0.06);
@@ -70,6 +72,8 @@
     --amber: #e3ae52;
     --amber-soft: #382c14;
     --amber-line: #6b5527;
+    --amber-ink: #e3ae52;
+    --amber-ink: #e3ae52;
     --danger: #e5806f;
     --danger-soft: #3a1f1a;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -90,6 +94,7 @@
   --amber: #e3ae52;
   --amber-soft: #382c14;
   --amber-line: #6b5527;
+  --amber-ink: #e3ae52;
   --danger: #e5806f;
   --danger-soft: #3a1f1a;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -114,6 +119,7 @@
   --color-amber: var(--amber);
   --color-amber-soft: var(--amber-soft);
   --color-amber-line: var(--amber-line);
+  --color-amber-ink: var(--amber-ink);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
 

@@ -56,7 +56,7 @@ export function Panel({ children, className }: { children: React.ReactNode; clas
 
 export function TableWrap({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("border-line bg-surface overflow-x-auto rounded-2xl border", className)}>
+    <div className={cn("border-line bg-surface relative overflow-x-auto rounded-2xl border", className)}>
       <table className="w-full border-collapse text-sm">{children}</table>
     </div>
   );
