@@ -48,3 +48,14 @@ export type DocumentDto = {
   error: string | null;
   createdAt: string;
 };
+
+// Shape of GET /api/insights (spec section 8).
+export type InsightsData = {
+  total: number;
+  answered: number;
+  notFound: number;
+  // Share of rated answers marked helpful, 0–1; null when nothing was rated.
+  helpfulRate: number | null;
+  topTopics: { section: string; count: number }[];
+  gaps: { id: string; question: string; reason: "notfound" | "unhelpful"; createdAt: string }[];
+};

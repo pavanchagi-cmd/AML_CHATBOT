@@ -1,17 +1,10 @@
 "use client";
 
+import type { InsightsData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Lead, Panel, TableWrap, formatDate, tdClass, thClass } from "@/components/ui";
 
-// Shape of GET /api/insights (spec section 8).
-export type InsightsData = {
-  total: number;
-  answered: number;
-  notFound: number;
-  helpfulRate: number | null;
-  topTopics: { section: string; count: number }[];
-  gaps: { id: string; question: string; reason: "notfound" | "unhelpful"; createdAt: string }[];
-};
+export type { InsightsData };
 
 export const EMPTY_INSIGHTS: InsightsData = {
   total: 0,
