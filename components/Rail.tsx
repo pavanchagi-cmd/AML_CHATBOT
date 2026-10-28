@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useReadyCount } from "@/lib/library-events";
 import { cn } from "@/lib/utils";
 
 const iconProps = {
@@ -57,9 +58,10 @@ export function Logo() {
   );
 }
 
-// readyCount is the number of ready documents; undefined hides the badge until the library is wired up.
-export function Rail({ readyCount }: { readyCount?: number }) {
+export function Rail() {
   const pathname = usePathname();
+  // Number of ready documents; hidden until it is known.
+  const readyCount = useReadyCount();
 
   return (
     <nav

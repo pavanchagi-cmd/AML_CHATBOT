@@ -1,18 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import type { DocumentDto } from "@/lib/types";
 import { TableWrap, formatDate, iconButtonClass, tdClass, thClass } from "@/components/ui";
 
-export type DocumentRow = {
-  id: string;
-  title: string;
-  category: string;
-  pageCount: number | null;
-  chunkCount: number;
-  status: "processing" | "ready" | "failed";
-  error: string | null;
-  createdAt: string;
-};
+export type DocumentRow = DocumentDto;
 
 function Status({ doc }: { doc: DocumentRow }) {
   const base =

@@ -1,7 +1,8 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { ADMIN_HEADER } from "@/lib/admin-header";
 import { config } from "@/lib/env";
 
-export const ADMIN_HEADER = "x-admin-passcode";
+export { ADMIN_HEADER };
 
 // Constant-time comparison; hashing first makes both inputs the same length.
 export function passcodeMatches(given: string, expected: string): boolean {
