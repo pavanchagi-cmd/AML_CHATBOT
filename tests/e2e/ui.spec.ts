@@ -138,3 +138,25 @@ test("source tabs show brief points for passages 1..n from one background reques
   // Still only one breakdown request for this answer.
   expect(chatCalls.filter((c) => c.upTo)).toHaveLength(1);
 });
+
+test("Remove is always visible and asks for the passcode before removing a document", async ({ page }) => {
+  await mockApi(page);
+  const deletes: { url: string; passcode: string | null }[] = [];
+  await page.route("**/api/documents/*", (r) => {
+    deletes.push({ url: r.request().url(), passcode: r.request().headers()["x-admin-passcode"] ?? null });
+    return r.fulfill({ status: 204 });
+  });
+  await page.goto("/library");
+  const remove = page.getByRole("button", { name: "Remove AML Pattern Analysis SOP" });
+  await expect(remove).toBeVisible();
+  await expect(page.getByRole("button", { name: "Re-index AML Pattern Analysis SOP" })).toBeVisible();
+
+  await remove.click();
+  await expect(page.getByLabel("Admin passcode")).toBeVisible();
+  page.once("dialog", (d) => d.accept());
+  await page.getByLabel("Admin passcode").fill("s3cret");
+  await page.getByRole("button", { name: "Unlock" }).click();
+
+  await expect(page.getByText("Document removed")).toBeVisible();
+  expect(deletes).toEqual([{ url: expect.stringContaining("/api/documents/d_1"), passcode: "s3cret" }]);
+});

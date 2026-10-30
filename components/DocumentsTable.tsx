@@ -1,5 +1,6 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DocumentDto } from "@/lib/types";
 import { TableWrap, formatDate, iconButtonClass, tdClass, thClass } from "@/components/ui";
@@ -20,12 +21,12 @@ function Status({ doc }: { doc: DocumentRow }) {
 
 export function DocumentsTable({
   docs,
-  isAdmin,
+  disabled,
   onDelete,
   onReindex,
 }: {
   docs: DocumentRow[];
-  isAdmin: boolean;
+  disabled?: boolean;
   onDelete: (doc: DocumentRow) => void;
   onReindex: (doc: DocumentRow) => void;
 }) {
@@ -66,13 +67,26 @@ export function DocumentsTable({
               <Status doc={d} />
             </td>
             <td className={cn(tdClass, "whitespace-nowrap")}>
-              {isAdmin && d.status !== "processing" && (
+              {d.status !== "processing" && (
                 <>
-                  <button type="button" className={iconButtonClass} onClick={() => onReindex(d)}>
+                  <button
+                    type="button"
+                    className={iconButtonClass}
+                    disabled={disabled}
+                    aria-label={`Re-index ${d.title}`}
+                    onClick={() => onReindex(d)}
+                  >
                     Re-index
                   </button>
-                  <button type="button" className={iconButtonClass} onClick={() => onDelete(d)}>
-                    Delete
+                  <button
+                    type="button"
+                    className={cn(iconButtonClass, "hover:text-danger")}
+                    disabled={disabled}
+                    aria-label={`Remove ${d.title}`}
+                    onClick={() => onDelete(d)}
+                  >
+                    <Trash2 size={14} strokeWidth={1.8} aria-hidden="true" />
+                    Remove
                   </button>
                 </>
               )}

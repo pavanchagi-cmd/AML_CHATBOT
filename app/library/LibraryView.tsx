@@ -124,7 +124,10 @@ export function LibraryView() {
   const [listError, setListError] = useState<string | null>(null);
   const [passcode, setPasscode] = useState<string | null>(null);
   const [prompting, setPrompting] = useState(false);
-  const [pending, setPending] = useState<{ file: File; category: Category } | null>(null);
+  // An action waiting for the admin passcode; it runs as soon as the admin unlocks.
+  const [pending, setPending] = useState<
+    { kind: "upload"; file: File; category: Category } | { kind: "remove" | "reindex"; doc: DocumentDto } | null
+  >(null);
   const [pipeline, setPipeline] = useState<PipelineState | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -230,7 +233,7 @@ export function LibraryView() {
       return;
     }
     if (!passcode) {
-      setPending({ file, category });
+      setPending({ kind: "upload", file, category });
       setPrompting(true);
       return;
     }
@@ -241,25 +244,37 @@ export function LibraryView() {
     savePasscode(code);
     setPasscode(code);
     setPrompting(false);
-    if (pending) {
-      const { file, category } = pending;
-      setPending(null);
-      void uploadAndIngest(file, category, code);
-    }
+    if (!pending) return;
+    setPending(null);
+    if (pending.kind === "upload") void uploadAndIngest(pending.file, pending.category, code);
+    else if (pending.kind === "remove") void remove(pending.doc, code);
+    else void reindex(pending.doc, code);
   }
 
-  async function remove(doc: DocumentDto) {
-    if (!passcode || busy) return;
-    if (!confirm(`Delete “${doc.title}” and its ${doc.chunkCount} chunks from the index?`)) return;
+  // Remove and Re-index are always shown; without the passcode they ask for it first.
+  function needsPasscode(action: { kind: "remove" | "reindex"; doc: DocumentDto }) {
+    if (passcode) return false;
+    setPending(action);
+    setPrompting(true);
+    return true;
+  }
+
+  async function remove(doc: DocumentDto, code = passcode) {
+    if (busy) return;
+    if (!code) {
+      needsPasscode({ kind: "remove", doc });
+      return;
+    }
+    if (!confirm(`Remove “${doc.title}” and its ${doc.chunkCount} chunks from the library?`)) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/documents/${encodeURIComponent(doc.id)}`, {
         method: "DELETE",
-        headers: { [ADMIN_HEADER]: passcode },
+        headers: { [ADMIN_HEADER]: code },
       });
       if (res.status === 401) lock("Enter the admin passcode again.");
-      else if (!res.ok) toast((await apiError(res, "Couldn't delete the document. Try again.")).message);
-      else toast("Document deleted");
+      else if (!res.ok) toast((await apiError(res, "Couldn't remove the document. Try again.")).message);
+      else toast("Document removed");
     } catch {
       toast("Couldn't reach the server. Check your connection and try again.");
     } finally {
@@ -268,14 +283,18 @@ export function LibraryView() {
     }
   }
 
-  async function reindex(doc: DocumentDto) {
-    if (!passcode || busy) return;
+  async function reindex(doc: DocumentDto, code = passcode) {
+    if (busy) return;
+    if (!code) {
+      needsPasscode({ kind: "reindex", doc });
+      return;
+    }
     setBusy(true);
     setPipeline({ name: doc.title, stage: 1, message: "Removing the old chunks…" });
     try {
       const res = await fetch(`/api/documents/${encodeURIComponent(doc.id)}/reindex`, {
         method: "POST",
-        headers: { [ADMIN_HEADER]: passcode },
+        headers: { [ADMIN_HEADER]: code },
       });
       await followPipeline(res, doc.title);
     } catch {
@@ -332,7 +351,12 @@ export function LibraryView() {
             Loading documents…
           </div>
         ) : (
-          <DocumentsTable docs={docs} isAdmin={!!passcode && !busy} onDelete={remove} onReindex={reindex} />
+          <DocumentsTable
+            docs={docs}
+            disabled={busy}
+            onDelete={(d) => void remove(d)}
+            onReindex={(d) => void reindex(d)}
+          />
         )}
       </PageInner>
     </Page>
