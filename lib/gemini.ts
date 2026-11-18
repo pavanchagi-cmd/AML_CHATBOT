@@ -61,16 +61,3 @@ export async function embed(texts: string[], taskType: EmbedTaskType, opts: Embe
   }
   return out;
 }
-
-// Streams answer text from the chat model.
-export async function* generateStream(prompt: string, system: string): AsyncGenerator<string> {
-  const stream = await ai().models.generateContentStream({
-    model: config.geminiChatModel(),
-    contents: prompt,
-    config: { systemInstruction: system, temperature: 0.2 },
-  });
-  for await (const chunk of stream) {
-    const text = chunk.text;
-    if (text) yield text;
-  }
-}
