@@ -4,7 +4,7 @@ import { CATEGORIES } from "@/lib/categories";
 import { BUSY_MESSAGE, SEARCH_UNAVAILABLE_MESSAGE, type ChatEvent } from "@/lib/chat-events";
 import { stripInvalidCitations } from "@/lib/citations";
 import { MissingEnvError } from "@/lib/env";
-import { generateStream } from "@/lib/gemini";
+import { generateStream } from "@/lib/nvidia";
 import { ndjsonResponse } from "@/lib/ndjson";
 import { logQuestion } from "@/lib/questions";
 import { buildPrompt, isNotFound, mightBeNotFound, retrieve, SYSTEM_INSTRUCTION } from "@/lib/rag";
