@@ -31,7 +31,9 @@ function numberEnv(name: string, fallback: number): number {
 
 export const config = {
   geminiApiKey: () => requireEnv("GEMINI_API_KEY"),
-  geminiChatModel: () => requireEnv("GEMINI_CHAT_MODEL"),
+  nvidiaApiKey: () => requireEnv("NVIDIA_API_KEY"),
+  nvidiaChatModel: () => read("NVIDIA_CHAT_MODEL") ?? "nvidia/nemotron-3.5-super-vl-120b-a12b",
+  nvidiaBaseUrl: () => (read("NVIDIA_BASE_URL") ?? "https://integrate.api.nvidia.com/v1").replace(/\/+$/, ""),
   geminiEmbedModel: () => read("GEMINI_EMBED_MODEL") ?? "gemini-embedding-001",
   embedDim: () => numberEnv("EMBED_DIM", 768),
   pineconeApiKey: () => requireEnv("PINECONE_API_KEY"),
