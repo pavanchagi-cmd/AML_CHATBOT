@@ -3,7 +3,8 @@ import { blobCredentialsConfigured } from "@/lib/blob";
 import { count } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { config } from "@/lib/env";
-import { ai, embed } from "@/lib/gemini";
+import { embed } from "@/lib/gemini";
+import { pingChatModel } from "@/lib/nvidia";
 import { isMissingTable } from "@/lib/db-errors";
 import { pinecone } from "@/lib/pinecone";
 import { inspectIndex } from "@/lib/pinecone-admin";
@@ -26,8 +27,8 @@ class FixableError extends Error {
 export type { Check, SetupReport };
 
 const REQUIRED = [
-  ["GEMINI_API_KEY", "Gemini API key from Google AI Studio"],
-  ["GEMINI_CHAT_MODEL", "Gemini model that writes the answers"],
+  ["GEMINI_API_KEY", "Gemini API key from Google AI Studio (still used for embeddings)"],
+  ["NVIDIA_API_KEY", "NVIDIA API key from build.nvidia.com (writes the answers)"],
   ["PINECONE_API_KEY", "Pinecone API key"],
   ["DATABASE_URL", "Added by the Neon Postgres integration (Storage tab)"],
   ["ADMIN_PASSCODE", "Passcode for upload, delete and re-index"],
@@ -50,12 +51,14 @@ function blobSetting(): Check {
 function settings(): Check[] {
   const required: Check[] = REQUIRED.map(([name, purpose]) =>
     isSet(name)
-      ? { name, status: "ok", detail: name === "GEMINI_CHAT_MODEL" ? `Set to ${config.geminiChatModel()}` : "Set" }
+      ? { name, status: "ok", detail: "Set" }
       : { name, status: "missing", detail: `Not set. ${purpose}.` },
   );
   // Optional settings with defaults: show the value in use (none of these are secret).
   const optional: Check[] = [
     ["GEMINI_EMBED_MODEL", config.geminiEmbedModel()],
+    ["NVIDIA_CHAT_MODEL", config.nvidiaChatModel()],
+    ["NVIDIA_BASE_URL", config.nvidiaBaseUrl()],
     ["EMBED_DIM", String(config.embedDim())],
     ["PINECONE_INDEX", config.pineconeIndex()],
     ["PINECONE_NAMESPACE", config.pineconeNamespace()],
@@ -121,27 +124,13 @@ async function checkPinecone() {
   return `Index "${index.name}" is ready (${index.dimension} dimensions, cosine). ${inNamespace} passage(s) indexed.`;
 }
 
-async function checkEmbeddings() {
-  const [vector] = await embed(["setup check"], "RETRIEVAL_QUERY", { retry: { attempts: 1 } });
-  return `${config.geminiEmbedModel()} returned a ${vector.length}-dimension vector.`;
-}
-
-async function checkChatModel() {
-  const model = await ai().models.get({ model: config.geminiChatModel() });
-  return `Model ${config.geminiChatModel()} is available${model.displayName ? ` (${model.displayName})` : ""}.`;
-}
-
-async function checkBlob() {
-  await list({ limit: 1 });
-  return "Blob store reachable.";
-}
 
 export async function setupReport(): Promise<SetupReport> {
   const services = await Promise.all([
     run("Database (Neon Postgres)", ["DATABASE_URL"], checkDatabase),
     run("Vector index (Pinecone)", ["PINECONE_API_KEY"], checkPinecone),
     run("Embeddings (Gemini)", ["GEMINI_API_KEY"], checkEmbeddings),
-    run("Answer model (Gemini)", ["GEMINI_API_KEY", "GEMINI_CHAT_MODEL"], checkChatModel),
+    run("Answer model (NVIDIA Nemotron)", ["NVIDIA_API_KEY"], pingChatModel),
     run("File storage (Vercel Blob)", ["BLOB"], checkBlob),
   ]);
   return { environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown", settings: settings(), services };
