@@ -124,6 +124,15 @@ async function checkPinecone() {
   return `Index "${index.name}" is ready (${index.dimension} dimensions, cosine). ${inNamespace} passage(s) indexed.`;
 }
 
+async function checkEmbeddings() {
+  const [vector] = await embed(["setup check"], "RETRIEVAL_QUERY", { retry: { attempts: 1 } });
+  return `${config.geminiEmbedModel()} returned a ${vector.length}-dimension vector.`;
+}
+
+async function checkBlob() {
+  await list({ limit: 1 });
+  return "Blob store reachable.";
+}
 
 export async function setupReport(): Promise<SetupReport> {
   const services = await Promise.all([
